@@ -36,10 +36,10 @@
 
 .seq-row {
     display: grid;
-    grid-template-columns: 90px 76px 1fr 104px;
+    grid-template-columns: 46px 46px 72px 1fr;
     align-items: center;
     padding: 3px 2px;
-    column-gap: 8px;
+    column-gap: 6px;
 }
 
 .seq-row + .seq-row {
@@ -94,6 +94,7 @@
     color: #e5e7ea;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
+    text-align: right;
 }
 
 .seq-empty {
@@ -137,8 +138,8 @@
     }
 
     .seq-row {
-        grid-template-columns: 78px 68px 1fr 92px;
-        column-gap: 6px;
+        grid-template-columns: 42px 40px 72px 1fr;
+        column-gap: 5px;
     }
 
     .seq-date,

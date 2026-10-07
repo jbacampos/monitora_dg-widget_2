@@ -106,17 +106,14 @@ global.ctx = ctx;
 
 vm.runInThisContext(src, { filename: "script.js" });
 
-const WEEKDAYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 const p2 = n => String(n).padStart(2, "0");
 const expDate = ts => {
     const d = new Date(ts);
-    return p2(d.getUTCDate()) + "/" + p2(d.getUTCMonth() + 1) +
-        " " + WEEKDAYS[d.getUTCDay()];
+    return p2(d.getUTCDate()) + "/" + p2(d.getUTCMonth() + 1);
 };
 const expClock = ts => {
     const d = new Date(ts);
-    return p2(d.getUTCHours()) + ":" + p2(d.getUTCMinutes()) +
-        ":" + p2(d.getUTCSeconds());
+    return p2(d.getUTCHours()) + ":" + p2(d.getUTCMinutes());
 };
 // Círculo do estado: [desligado, ligado]; mesma marcação gerada
 // por script.js (função stateSymbols).

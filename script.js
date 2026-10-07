@@ -30,20 +30,16 @@ let currentSnapshots = null;
 // Timer único que mantém a duração viva (1ª linha) atualizada a cada 1s.
 let liveTimer = null;
 
-const WEEKDAYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
-
 function pad2(n) {
     return String(n).padStart(2, "0");
 }
 
 function formatDate(d) {
-    return pad2(d.getDate()) + "/" + pad2(d.getMonth() + 1) +
-        " " + WEEKDAYS[d.getDay()];
+    return pad2(d.getDate()) + "/" + pad2(d.getMonth() + 1);
 }
 
 function formatClock(d) {
-    return pad2(d.getHours()) + ":" + pad2(d.getMinutes()) +
-        ":" + pad2(d.getSeconds());
+    return pad2(d.getHours()) + ":" + pad2(d.getMinutes());
 }
 
 // Duração compacta: 7s / 2m 13s / 1h 6m 32s / 2d 4h 18m 7s.

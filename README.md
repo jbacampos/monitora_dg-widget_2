@@ -13,9 +13,9 @@ Tabela histórica da sequência de estados do snapshot do device
 2. Colunas (nesta ordem): `rede_disponivel`, `alimentacao_rede`,
    `alimentacao_offgrid`, `alimentacao_gerador`.
 3. Ordenação por `ts` **decrescente** (evento mais recente primeiro).
-4. Data/hora no formato `dd/mm ddd HH:mm:ss` (ex.: `07/10 qua 10:27:05`).
-5. A data (`dd/mm ddd`) aparece **somente** na primeira linha de cada dia; nas
-   demais linhas do mesmo dia mostra-se apenas `HH:mm:ss`.
+4. Data/hora no formato `dd/mm HH:mm` (ex.: `07/10 10:27`).
+5. A data (`dd/mm`) aparece **somente** na primeira linha de cada dia; nas
+   demais linhas do mesmo dia mostra-se apenas `HH:mm`.
 6. Código visual **idêntico** ao widget ENERGIA DO SÍTIO:
    - `rede_disponivel` → 🟢 / ⚪
    - `alimentacao_rede` → 🔵 / ⚪
