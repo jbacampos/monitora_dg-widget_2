@@ -64,9 +64,29 @@
 .seq-states {
     font-size: 13px;
     line-height: 18px;
-    letter-spacing: 4px;
+    letter-spacing: 0;
     white-space: nowrap;
 }
+
+/* LED do estado: círculo preenchido. A cor muda conforme o
+   estado — ligado = cor da coluna; desligado = cinza #686B70. */
+.st-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    box-sizing: border-box;
+    background: #686B70;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+.st-dot.st-green  { background: #21c55d; }
+.st-dot.st-blue   { background: #3182f6; }
+.st-dot.st-yellow { background: #eab308; }
+.st-dot.st-red    { background: #ef4444; }
+.st-dot.st-off    { background: #686B70; }
 
 .seq-duration {
     font-size: 13px;
@@ -93,6 +113,12 @@
     font-size: 11px;
     line-height: 15px;
     color: #969ba3;
+}
+
+.legend .st-dot {
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
 }
 
 /* ============================================================

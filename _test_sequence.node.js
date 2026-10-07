@@ -118,14 +118,18 @@ const expClock = ts => {
     return p2(d.getUTCHours()) + ":" + p2(d.getUTCMinutes()) +
         ":" + p2(d.getUTCSeconds());
 };
-const EMOJI = {
-    rede_disponivel: ["⚪", "🟢"],
-    alimentacao_rede: ["⚪", "🔵"],
-    alimentacao_offgrid: ["⚪", "🟡"],
-    alimentacao_gerador: ["⚪", "🔴"]
+// Círculo do estado: [desligado, ligado]; mesma marcação gerada
+// por script.js (função stateSymbols).
+const SYMBOL = {
+    rede_disponivel: ["st-off", "st-green"],
+    alimentacao_rede: ["st-off", "st-blue"],
+    alimentacao_offgrid: ["st-off", "st-yellow"],
+    alimentacao_gerador: ["st-off", "st-red"]
 };
 const expStates = r =>
-    KEYS.map(k => EMOJI[k][Number(r[k]) === 1 ? 1 : 0]).join(" ");
+    KEYS.map(k =>
+        '<i class="st-dot ' + SYMBOL[k][Number(r[k]) === 1 ? 1 : 0] + '"></i>'
+    ).join("");
 
 let passed = 0;
 let failed = 0;

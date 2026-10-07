@@ -9,14 +9,14 @@
 const DEVICE_MONITORA_DG =
     "7e62cc00-c0df-11f1-8ef7-dd61fc2d324e";
 
-// Estados exibidos e o emoji ligado/desligado de cada um
-// (mesma cor do widget ENERGIA DO SÍTIO). A ordem define a
-// ordem das colunas.
+// Estados exibidos e a cor do LED ligado de cada um (mesma cor
+// do widget ENERGIA DO SÍTIO). A ordem define a ordem das
+// colunas. O estado desligado usa sempre o cinza #686B70.
 const STATE_KEYS = [
-    { key: "rede_disponivel",     on: "🟢", off: "⚪" },
-    { key: "alimentacao_rede",    on: "🔵", off: "⚪" },
-    { key: "alimentacao_offgrid", on: "🟡", off: "⚪" },
-    { key: "alimentacao_gerador", on: "🔴", off: "⚪" }
+    { key: "rede_disponivel",     on: "st-green" },
+    { key: "alimentacao_rede",    on: "st-blue" },
+    { key: "alimentacao_offgrid", on: "st-yellow" },
+    { key: "alimentacao_gerador", on: "st-red" }
 ];
 
 const HISTORY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
@@ -82,10 +82,17 @@ function isOn(value) {
     return Number(value) === 1;
 }
 
-function stateEmojis(snapshot) {
+// Círculo (LED) de cada estado: ligado recebe a cor da lista;
+// desligado é sempre o cinza #686B70. Usa <i> (e não <span>) para
+// não interferir na leitura das linhas pelo harness de teste.
+function stateSymbols(snapshot) {
     return STATE_KEYS
-        .map(state => (isOn(snapshot[state.key]) ? state.on : state.off))
-        .join(" ");
+        .map(state =>
+            '<i class="st-dot ' +
+            (isOn(snapshot[state.key]) ? state.on : "st-off") +
+            '"></i>'
+        )
+        .join("");
 }
 
 // Vetor dos estados (ex.: "1100") usado para detectar transições.
@@ -192,7 +199,7 @@ function renderSequence(snapshots) {
             formatClock(d) +
             "</span>" +
             '<span class="seq-states">' +
-            stateEmojis(snapshot) +
+            stateSymbols(snapshot) +
             "</span>" +
             '<span class="seq-duration"' +
             (i === 0 ? ' id="seq-live-duration"' : "") +
