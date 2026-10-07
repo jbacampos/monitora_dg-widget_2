@@ -56,6 +56,7 @@ const container = {
 
 let httpCalls = 0;
 let onDataUpdated = null;
+let destroyCallback = null;
 const ctx = {
     http: {
         get: () => ({
@@ -77,7 +78,27 @@ const ctx = {
             }
         })
     },
-    registerDestroyCallback: () => {}
+    registerDestroyCallback: fn => {
+        destroyCallback = fn;
+    }
+};
+
+// --- Controle de tempo e do setInterval para os testes de duração ---
+let fakeNow = D("2026-10-07T10:40:00Z");
+Date.now = () => fakeNow;
+
+let setIntervalCount = 0;
+let clearIntervalCount = 0;
+let intervalDelay = null;
+const intervalFns = [];
+global.setInterval = function (fn, delay) {
+    setIntervalCount++;
+    intervalDelay = delay;
+    intervalFns.push(fn);
+    return { id: setIntervalCount };
+};
+global.clearInterval = function () {
+    clearIntervalCount++;
 };
 
 global.container = container;
@@ -208,7 +229,77 @@ setTimeout(() => {
         console.log(`  [${m ? (m[1] || "").padEnd(9) : "?"}] ${m ? m[2] : "?"}  ${m ? m[3] : "?"}`);
     });
 
+    // ------------------------------------------------------
+    // DURAÇÃO (coluna acrescentada):
+    //  1ª linha viva, demais fixas, última sem informação.
+    // ------------------------------------------------------
+    const reDur = /<span class="seq-date">([\s\S]*?)<\/span><span class="seq-clock">([\s\S]*?)<\/span><span class="seq-states">([\s\S]*?)<\/span><span class="seq-duration"(?: id="seq-live-duration")?>([\s\S]*?)<\/span>/;
+
+    function readRows() {
+        const h = elements.sequence ? elements.sequence.innerHTML : "";
+        return h.split('<div class="seq-row">').slice(1).map(c => {
+            const m = c.match(reDur);
+            return m
+                ? { date: m[1], clock: m[2], states: m[3], duration: m[4] }
+                : null;
+        });
+    }
+
+    let rows3 = readRows();
+
+    // (1) Primeira linha: duração viva = Date.now() - ts da 1ª linha.
+    //     fakeNow = 10:40:00Z, 1ª linha = 10:35:00Z -> "5m 0s".
+    check("duracao: 1a linha viva", rows3[0].duration, "5m 0s");
+
+    // (3) Duração correta entre duas transições (linha acima - linha).
+    check("duracao: linha 2", rows3[1].duration, "7m 55s");
+    check("duracao: linha 3", rows3[2].duration, "11m 47s");
+    check("duracao: linha 4", rows3[3].duration, "27m 16s");
+    check("duracao: linha 5 (horas)", rows3[4].duration, "11h 35m 20s");
+
+    // (5) Última linha: sem informação suficiente -> "—".
+    check("duracao: ultima linha sem info", rows3[rows3.length - 1].duration, "—");
+
+    // (6) Formatação compacta: segundos, minutos, horas e dias.
+    check("fmt 7s", formatDuration(7000), "7s");
+    check("fmt 2m 13s", formatDuration(133000), "2m 13s");
+    check("fmt 11m 47s", formatDuration(707000), "11m 47s");
+    check("fmt 1h 6m 32s", formatDuration(3992000), "1h 6m 32s");
+    check("fmt 2d 4h 18m 7s", formatDuration(188287000), "2d 4h 18m 7s");
+
+    // (2) Avanço de 1 segundo: só a 1ª linha muda, via setInterval único.
+    check("timer: um unico setInterval", String(setIntervalCount), "1");
+    check("timer: intervalo 1000ms", String(intervalDelay), "1000");
+    const httpBefore = httpCalls;
+    fakeNow += 1000;
+    if (intervalFns[0]) { intervalFns[0](); }
+    check("duracao: 1s depois (viva)", elements["seq-live-duration"].textContent, "5m 1s");
+
+    // (7) O contador não gera novo request ao ThingsBoard.
+    check("timer: sem novo http.get", String(httpCalls), String(httpBefore));
+
+    // (4) Nova transição: a antiga 1ª linha passa a duração fixa.
+    //     fakeNow = 10:40:01Z, nova linha = 10:38:00Z.
+    const changed2 = {
+        rede_disponivel: "1",
+        alimentacao_rede: "1",
+        alimentacao_offgrid: "0",
+        alimentacao_gerador: "0"
+    };
+    const newTs2 = D("2026-10-07T10:38:00Z");
+    onDataUpdated({ data: subData(newTs2, changed2) });
+    rows3 = readRows();
+    check("duracao: +1 linha apos transicao", String(rows3.length), String(rowsData.length + 2));
+    check("duracao: nova 1a linha viva", rows3[0].duration, "2m 1s");
+    check("duracao: antiga 1a linha fixa", rows3[1].duration, "3m 0s");
+    check("duracao: demais inalteradas", rows3[2].duration, "7m 55s");
+    check("timer: continua um setInterval", String(setIntervalCount), "1");
+
+    // (8) Timer removido no destroy.
+    if (typeof destroyCallback === "function") { destroyCallback(); }
+    check("destroy: clearInterval chamado", String(clearIntervalCount), "1");
+
     console.log("");
-    console.log(`Resumo: ${passed} passaram, ${failed} falharam.`);
+    console.log("Resumo: " + passed + " passaram, " + failed + " falharam.");
     process.exit(failed === 0 ? 0 : 1);
 }, 50);

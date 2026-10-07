@@ -23,8 +23,18 @@ Tabela histórica da sequência de estados do snapshot do device
    - `alimentacao_gerador` → 🔴 / ⚪
 7. Sem coluna de automático/manual.
 8. Não altera o firmware nem a estrutura dos dados históricos existentes.
-9. Primeira versão: prioriza a tabela histórica ordenada e agrupada por data.
-   Não implementa duração de estado.
+9. Coluna **Duração** à direita dos quatro LEDs. A tabela está ordenada por `ts`
+   decrescente; a duração de cada linha mede quanto o estado daquele snapshot
+   permaneceu vigente:
+   - **1ª linha** (estado atual): duração **viva** = `Date.now() - ts`, atualizada
+     localmente a cada 1 s (um único `setInterval`), sem nova consulta ao
+     ThingsBoard. Ao surgir uma transição, a antiga 1ª linha passa a ter duração
+     fixa (`novo_ts - antigo_ts`).
+   - **linhas intermediárias**: `snapshots[i-1].ts - snapshots[i].ts`.
+   - **última linha** (limite inferior da janela): duração total desconhecida;
+     mostra-se `—` (não se inventa um total).
+   - Formato compacto: `7s`, `2m 13s`, `11m 47s`, `1h 6m 32s`, `2d 4h 18m 7s`
+     (sem a palavra "atrás").
 10. Widget independente do ENERGIA DO SÍTIO, seguindo a mesma identidade visual.
 
 ## Arquivos

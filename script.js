@@ -27,6 +27,9 @@ const MAX_ROWS = 300;
 // Mantida em memória para detectar transições na subscription ao vivo.
 let currentSnapshots = null;
 
+// Timer único que mantém a duração viva (1ª linha) atualizada a cada 1s.
+let liveTimer = null;
+
 const WEEKDAYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
 function pad2(n) {
@@ -41,6 +44,33 @@ function formatDate(d) {
 function formatClock(d) {
     return pad2(d.getHours()) + ":" + pad2(d.getMinutes()) +
         ":" + pad2(d.getSeconds());
+}
+
+// Duração compacta: 7s / 2m 13s / 1h 6m 32s / 2d 4h 18m 7s.
+// As unidades superiores só aparecem quando fazem sentido; os
+// segundos aparecem sempre.
+function formatDuration(ms) {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const days = Math.floor(total / 86400);
+    const hours = Math.floor((total % 86400) / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+
+    let out = "";
+
+    if (days > 0) {
+        out += days + "d ";
+    }
+
+    if (days > 0 || hours > 0) {
+        out += hours + "h ";
+    }
+
+    if (days > 0 || hours > 0 || minutes > 0) {
+        out += minutes + "m ";
+    }
+
+    return out + seconds + "s";
 }
 
 function dayKey(d) {
@@ -74,6 +104,57 @@ function renderMessage(text) {
     }
 }
 
+// Duração exibida em cada linha:
+//  - 1ª linha -> duração viva (Date.now() - ts da 1ª linha);
+//  - última   -> sem informação suficiente ("—");
+//  - demais   -> diferença até a transição seguinte (linha acima).
+function rowDuration(i, lastIndex) {
+    if (i === 0) {
+        return formatDuration(Date.now() - currentSnapshots[0].ts);
+    }
+
+    if (i === lastIndex) {
+        return "—";
+    }
+
+    return formatDuration(
+        currentSnapshots[i - 1].ts - currentSnapshots[i].ts
+    );
+}
+
+// Atualiza somente a duração da 1ª linha (estado atual), de forma
+// local, sem nenhuma nova consulta ao ThingsBoard.
+function updateLiveDuration() {
+    if (!currentSnapshots || !currentSnapshots.length) {
+        return;
+    }
+
+    const el = container.querySelector("#seq-live-duration");
+
+    if (!el) {
+        return;
+    }
+
+    el.textContent = formatDuration(Date.now() - currentSnapshots[0].ts);
+}
+
+// Garante um único setInterval, responsável apenas pela duração viva.
+function startLiveTimer() {
+    if (liveTimer !== null) {
+        return;
+    }
+
+    updateLiveDuration();
+    liveTimer = setInterval(updateLiveDuration, 1000);
+}
+
+function stopLiveTimer() {
+    if (liveTimer !== null) {
+        clearInterval(liveTimer);
+        liveTimer = null;
+    }
+}
+
 function renderSequence(snapshots) {
     const seqEl = container.querySelector("#sequence");
 
@@ -83,6 +164,7 @@ function renderSequence(snapshots) {
 
     if (!snapshots || !snapshots.length) {
         currentSnapshots = [];
+        stopLiveTimer();
         renderMessage("Sem dados no período.");
         return;
     }
@@ -92,7 +174,9 @@ function renderSequence(snapshots) {
     let lastDay = null;
     let html = "";
 
-    snapshots.slice(0, MAX_ROWS).forEach(snapshot => {
+    const lastIndex = currentSnapshots.length - 1;
+
+    currentSnapshots.forEach((snapshot, i) => {
         const d = new Date(snapshot.ts);
         const dk = dayKey(d);
         const showDate = dk !== lastDay;
@@ -110,10 +194,17 @@ function renderSequence(snapshots) {
             '<span class="seq-states">' +
             stateEmojis(snapshot) +
             "</span>" +
+            '<span class="seq-duration"' +
+            (i === 0 ? ' id="seq-live-duration"' : "") +
+            ">" +
+            rowDuration(i, lastIndex) +
+            "</span>" +
             "</div>";
     });
 
     seqEl.innerHTML = html;
+
+    startLiveTimer();
 }
 
 // ============================================================
@@ -335,6 +426,7 @@ function startLiveSubscription() {
 // ============================================================
 
 ctx.registerDestroyCallback(() => {
+    stopLiveTimer();
     currentSnapshots = null;
 });
 
