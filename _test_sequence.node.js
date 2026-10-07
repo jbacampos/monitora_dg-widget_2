@@ -21,6 +21,8 @@ const KEYS = [
     "alimentacao_gerador"
 ];
 
+const ID = "7e62cc00-c0df-11f1-8ef7-dd61fc2d324e";
+
 const D = s => Date.parse(s);
 const rowsData = [
     { ts: D("2026-10-07T10:27:05Z"), rede_disponivel: "1", alimentacao_rede: "0", alimentacao_offgrid: "1", alimentacao_gerador: "0" },
@@ -53,12 +55,24 @@ const container = {
 };
 
 let httpCalls = 0;
+let onDataUpdated = null;
 const ctx = {
     http: {
         get: () => ({
             subscribe: ok => {
                 httpCalls++;
                 ok(series);
+                return { unsubscribe() {} };
+            }
+        })
+    },
+    subscriptionApi: {
+        createSubscription: options => ({
+            subscribe: fn => {
+                if (options && options.callbacks) {
+                    onDataUpdated = options.callbacks.onDataUpdated;
+                }
+                fn({ id: "test-subscription", data: [] });
                 return { unsubscribe() {} };
             }
         })
@@ -140,6 +154,59 @@ setTimeout(() => {
     parsed.forEach(p =>
         console.log(`  [${(p.date || "").padEnd(9)}] ${p.clock}  ${p.states}`)
     );
+
+    // ------------------------------------------------------
+    // Atualização ao vivo (subscription): só cria linha em
+    // transição (ts novo E estados diferentes do topo).
+    // ------------------------------------------------------
+    function subData(ts, r) {
+        return KEYS.map(k => ({
+            dataKey: { name: k, type: "timeseries" },
+            datasource: { entityFilter: { singleEntity: { id: ID } } },
+            data: [[ts, r[k]]]
+        }));
+    }
+
+    check("subscription registrada", String(typeof onDataUpdated), "function");
+
+    // (a) Novo ts, porém MESMOS estados do topo -> sem transição.
+    const topRow = expected[0];
+    onDataUpdated({ data: subData(D("2026-10-07T10:30:00Z"), topRow) });
+    let rows2 = (elements.sequence ? elements.sequence.innerHTML : "")
+        .split('<div class="seq-row">').slice(1);
+    check("sem transicao: mantem linhas", String(rows2.length), String(rowsData.length));
+
+    // (b) ts repetido -> ignorado, mesmo com estados diferentes.
+    const changed = {
+        rede_disponivel: "1",
+        alimentacao_rede: "0",
+        alimentacao_offgrid: "0",
+        alimentacao_gerador: "1"
+    };
+    onDataUpdated({ data: subData(topRow.ts, changed) });
+    rows2 = (elements.sequence ? elements.sequence.innerHTML : "")
+        .split('<div class="seq-row">').slice(1);
+    check("ts repetido: mantem linhas", String(rows2.length), String(rowsData.length));
+
+    // (c) ts novo E estados diferentes -> nova linha no topo.
+    const newTs = D("2026-10-07T10:35:00Z");
+    onDataUpdated({ data: subData(newTs, changed) });
+    rows2 = (elements.sequence ? elements.sequence.innerHTML : "")
+        .split('<div class="seq-row">').slice(1);
+    check("com transicao: +1 linha", String(rows2.length), String(rowsData.length + 1));
+
+    const m0 = rows2[0].match(re);
+    check("transicao: topo data", m0 ? m0[1] : "?", expDate(newTs));
+    check("transicao: topo hora", m0 ? m0[2] : "?", expClock(newTs));
+    check("transicao: topo estados", m0 ? m0[3] : "?", expStates(changed));
+    check("http.get continua 1x", String(httpCalls), "1");
+
+    console.log("");
+    console.log("Após transição ao vivo (3 primeiras linhas):");
+    rows2.slice(0, 3).forEach(c => {
+        const m = c.match(re);
+        console.log(`  [${m ? (m[1] || "").padEnd(9) : "?"}] ${m ? m[2] : "?"}  ${m ? m[3] : "?"}`);
+    });
 
     console.log("");
     console.log(`Resumo: ${passed} passaram, ${failed} falharam.`);

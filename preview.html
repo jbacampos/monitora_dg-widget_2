@@ -42,6 +42,8 @@ function toTimeseries(rows) {
     return out;
 }
 
+let liveOnDataUpdated = null;
+
 const ctx = {
     http: {
         get: () => ({
@@ -51,8 +53,34 @@ const ctx = {
             }
         })
     },
+    subscriptionApi: {
+        createSubscription: options => ({
+            subscribe: fn => {
+                if (options && options.callbacks) {
+                    liveOnDataUpdated = options.callbacks.onDataUpdated;
+                }
+                fn({ id: 'preview-live', data: [] });
+                return { unsubscribe(){} };
+            }
+        })
+    },
     registerDestroyCallback: () => {}
 };
+
+// Dispara uma atualização ao vivo (subscription) com um snapshot novo.
+// Simula a chegada de uma transição de estado vinda do ThingsBoard.
+function pushLive(ts, r) {
+    if (typeof liveOnDataUpdated !== 'function') {
+        return;
+    }
+    const data = ['rede_disponivel','alimentacao_rede','alimentacao_offgrid','alimentacao_gerador']
+        .map(k => ({
+            dataKey: { name: k, type: 'timeseries' },
+            datasource: { entityFilter: { singleEntity: { id: '7e62cc00-c0df-11f1-8ef7-dd61fc2d324e' } } },
+            data: [[ts, r[k]]]
+        }));
+    liveOnDataUpdated({ data });
+}
 
 fetch('index.html')
     .then(r => r.text())
@@ -62,6 +90,26 @@ fetch('index.html')
         s.src = 'script.js';
         document.body.appendChild(s);
     });
+
+// Transições simuladas (ao vivo): uma nova linha deve surgir no topo
+// assim que a subscription entregar um estado diferente do atual.
+setTimeout(() => {
+    pushLive(Date.now(), {
+        rede_disponivel: '1',
+        alimentacao_rede: '1',
+        alimentacao_offgrid: '0',
+        alimentacao_gerador: '0'
+    });
+}, 3000);
+
+setTimeout(() => {
+    pushLive(Date.now(), {
+        rede_disponivel: '0',
+        alimentacao_rede: '0',
+        alimentacao_offgrid: '0',
+        alimentacao_gerador: '1'
+    });
+}, 6000);
 </script>
 </body>
 </html>

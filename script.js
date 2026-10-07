@@ -23,6 +23,10 @@ const HISTORY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
 const HISTORY_LIMIT = 2000;
 const MAX_ROWS = 300;
 
+// Lista de snapshots atualmente exibida (mais recente primeiro).
+// Mantida em memória para detectar transições na subscription ao vivo.
+let currentSnapshots = null;
+
 const WEEKDAYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
 function pad2(n) {
@@ -54,6 +58,13 @@ function stateEmojis(snapshot) {
         .join(" ");
 }
 
+// Vetor dos estados (ex.: "1100") usado para detectar transições.
+function stateVector(snapshot) {
+    return STATE_KEYS
+        .map(state => (isOn(snapshot[state.key]) ? "1" : "0"))
+        .join("");
+}
+
 function renderMessage(text) {
     const seqEl = container.querySelector("#sequence");
 
@@ -71,9 +82,12 @@ function renderSequence(snapshots) {
     }
 
     if (!snapshots || !snapshots.length) {
+        currentSnapshots = [];
         renderMessage("Sem dados no período.");
         return;
     }
+
+    currentSnapshots = snapshots.slice(0, MAX_ROWS);
 
     let lastDay = null;
     let html = "";
@@ -180,11 +194,148 @@ function loadSequence() {
     renderMessage("Carregando...");
 
     fetchHistory()
-        .then(byKey => renderSequence(buildSnapshots(byKey)))
+        .then(byKey => {
+            renderSequence(buildSnapshots(byKey));
+            startLiveSubscription();
+        })
         .catch(error => {
             console.error("Monitora_DG histórico:", error);
             renderMessage("Não foi possível carregar o histórico.");
         });
 }
+
+// ============================================================
+// ATUALIZAÇÃO AO VIVO
+// ------------------------------------------------------------
+// Escuta os quatro estados via subscription do ThingsBoard e
+// acrescenta uma nova linha no topo quando uma transição de
+// estado é detectada. Valores repetidos (sem transição) e
+// timestamps já conhecidos são ignorados.
+// ============================================================
+
+function applyLiveSnapshot(candidate) {
+    if (!candidate || !Number.isFinite(candidate.ts)) {
+        return;
+    }
+
+    // Histórico ainda não carregou.
+    if (!currentSnapshots) {
+        return;
+    }
+
+    // Timestamp já conhecido (ou mais antigo): não é novidade.
+    if (
+        currentSnapshots.length &&
+        candidate.ts <= currentSnapshots[0].ts
+    ) {
+        return;
+    }
+
+    // Mesmo estado do topo: não houve transição.
+    if (
+        currentSnapshots.length &&
+        stateVector(candidate) === stateVector(currentSnapshots[0])
+    ) {
+        return;
+    }
+
+    currentSnapshots.unshift(candidate);
+
+    if (currentSnapshots.length > MAX_ROWS) {
+        currentSnapshots.length = MAX_ROWS;
+    }
+
+    renderSequence(currentSnapshots);
+}
+
+function applyLiveData(data) {
+    const values = {};
+    let maxTs = null;
+
+    STATE_KEYS.forEach(state => {
+        const item = data.find(d =>
+            d.dataKey &&
+            d.dataKey.name === state.key &&
+            d.dataKey.type === "timeseries" &&
+            d.datasource &&
+            d.datasource.entityFilter &&
+            d.datasource.entityFilter.singleEntity &&
+            d.datasource.entityFilter.singleEntity.id === DEVICE_MONITORA_DG
+        );
+
+        if (!item || !item.data || !item.data.length) {
+            return;
+        }
+
+        const point = item.data[item.data.length - 1];
+        const ts = Number(point[0]);
+
+        if (!Number.isFinite(ts)) {
+            return;
+        }
+
+        values[state.key] = point[1];
+
+        if (maxTs === null || ts > maxTs) {
+            maxTs = ts;
+        }
+    });
+
+    // Só monta o snapshot quando os quatro estados estão presentes.
+    if (maxTs === null || Object.keys(values).length < STATE_KEYS.length) {
+        return;
+    }
+
+    const candidate = { ts: maxTs };
+
+    STATE_KEYS.forEach(state => {
+        candidate[state.key] = values[state.key];
+    });
+
+    applyLiveSnapshot(candidate);
+}
+
+function startLiveSubscription() {
+    const subscriptionOptions = {
+        type: "latest",
+
+        datasources: [{
+            type: "entity",
+
+            entityFilter: {
+                type: "singleEntity",
+                singleEntity: {
+                    entityType: "DEVICE",
+                    id: DEVICE_MONITORA_DG
+                }
+            },
+
+            dataKeys: STATE_KEYS.map(state => ({
+                type: "timeseries",
+                name: state.key,
+                settings: {}
+            }))
+        }],
+
+        callbacks: {
+            onDataUpdated: subscription =>
+                applyLiveData(subscription.data || [])
+        }
+    };
+
+    ctx.subscriptionApi
+        .createSubscription(subscriptionOptions, true)
+        .subscribe(subscription => {
+            ctx.defaultSubscription = subscription;
+        });
+}
+
+// ============================================================
+// LIMPEZA
+// ============================================================
+
+ctx.registerDestroyCallback(() => {
+    currentSnapshots = null;
+});
 
 loadSequence();
