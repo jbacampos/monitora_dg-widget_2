@@ -1,0 +1,121 @@
+/* ============================================================
+   WIDGET MONITORA_DG — HISTÓRICO / SEQUÊNCIA DE ESTADOS
+   Mesma identidade visual do widget ENERGIA DO SÍTIO.
+   ============================================================ */
+
+.card {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 16px 18px;
+    background: #292c32;
+    color: #eeeeee;
+    font-family: Inter, Arial, sans-serif;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.title {
+    text-align: center;
+    font-size: 18px;
+    line-height: 22px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #f0f0f0;
+    margin-bottom: 14px;
+}
+
+.sequence {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.seq-row {
+    display: grid;
+    grid-template-columns: 90px 76px 1fr;
+    align-items: center;
+    padding: 3px 2px;
+    column-gap: 8px;
+}
+
+.seq-row + .seq-row {
+    border-top: 1px solid #34383f;
+}
+
+.seq-date {
+    font-size: 13px;
+    line-height: 18px;
+    color: #969ba3;
+    white-space: nowrap;
+}
+
+.seq-clock {
+    font-size: 13px;
+    line-height: 18px;
+    color: #e5e7ea;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.seq-states {
+    font-size: 13px;
+    line-height: 18px;
+    letter-spacing: 4px;
+    white-space: nowrap;
+}
+
+.seq-empty {
+    padding: 10px 2px;
+    font-size: 13px;
+    color: #969ba3;
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 14px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #555960;
+    font-size: 11px;
+    line-height: 15px;
+    color: #969ba3;
+}
+
+/* ============================================================
+   RESPONSIVIDADE
+   ============================================================ */
+
+@media (max-width: 480px) {
+    .card {
+        padding: 12px 12px;
+    }
+
+    .title {
+        font-size: 16px;
+        line-height: 20px;
+        margin-bottom: 10px;
+    }
+
+    .seq-row {
+        grid-template-columns: 78px 68px 1fr;
+        column-gap: 6px;
+    }
+
+    .seq-date,
+    .seq-clock,
+    .seq-states {
+        font-size: 12px;
+        line-height: 16px;
+    }
+
+    .legend {
+        font-size: 10px;
+        line-height: 13px;
+    }
+}

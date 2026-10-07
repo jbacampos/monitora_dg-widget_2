@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitora_DG — histórico (preview local)</title>
+<style>
+html,body{margin:0;min-height:100%;background:#202328;color:#eee;font-family:Inter,Arial,sans-serif}
+body{padding:20px;box-sizing:border-box}
+.preview-header{margin:0 0 10px;font-size:13px;color:#c8ccd1}
+#widget{width:min(100%,560px);height:620px;margin:auto}
+</style>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="preview-header">Monitora_DG — histórico de estados (preview local, dados simulados)</div>
+<div id="widget"></div>
+<script>
+const container = document.getElementById('widget');
+window.container = container;
+
+const D = s => Date.parse(s);
+
+// Snapshots simulados: os quatro estados publicados juntos, no mesmo ts.
+const snapshots = [
+    { ts: D('2026-10-07T10:27:05-03:00'), rede_disponivel:'1', alimentacao_rede:'0', alimentacao_offgrid:'1', alimentacao_gerador:'0' },
+    { ts: D('2026-10-07T10:15:18-03:00'), rede_disponivel:'1', alimentacao_rede:'0', alimentacao_offgrid:'0', alimentacao_gerador:'1' },
+    { ts: D('2026-10-07T09:48:02-03:00'), rede_disponivel:'1', alimentacao_rede:'1', alimentacao_offgrid:'0', alimentacao_gerador:'0' },
+    { ts: D('2026-10-06T22:12:42-03:00'), rede_disponivel:'1', alimentacao_rede:'1', alimentacao_offgrid:'0', alimentacao_gerador:'0' },
+    { ts: D('2026-10-06T20:03:11-03:00'), rede_disponivel:'0', alimentacao_rede:'0', alimentacao_offgrid:'0', alimentacao_gerador:'1' }
+];
+
+// Converte a lista de snapshots no formato da API (agrupada por chave),
+// simulando a resposta de /values/timeseries.
+function toTimeseries(rows) {
+    const keys = ['rede_disponivel','alimentacao_rede','alimentacao_offgrid','alimentacao_gerador'];
+    const out = {};
+    keys.forEach(k => { out[k] = []; });
+    rows.slice().sort((a,b) => b.ts - a.ts).forEach(r => {
+        keys.forEach(k => out[k].push({ ts: r.ts, value: r[k] }));
+    });
+    return out;
+}
+
+const ctx = {
+    http: {
+        get: () => ({
+            subscribe: ok => {
+                ok(toTimeseries(snapshots));
+                return { unsubscribe(){} };
+            }
+        })
+    },
+    registerDestroyCallback: () => {}
+};
+
+fetch('index.html')
+    .then(r => r.text())
+    .then(html => {
+        container.innerHTML = html;
+        const s = document.createElement('script');
+        s.src = 'script.js';
+        document.body.appendChild(s);
+    });
+</script>
+</body>
+</html>
