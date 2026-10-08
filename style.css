@@ -32,6 +32,14 @@
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
+    /* Barra de rolagem oculta VISUALMENTE, apenas neste container (o
+       único que rola). A rolagem continua funcional pelo overflow-y. */
+    scrollbar-width: none;     /* Firefox / Gecko */
+    -ms-overflow-style: none;  /* Edge legado */
+}
+
+.sequence::-webkit-scrollbar {
+    display: none;             /* Chrome / Chromium / WebKit (ThingsBoard) */
 }
 
 .seq-row {
